@@ -22,6 +22,7 @@
               <th class="px-5 py-3 font-medium">Harga</th>
               <th class="px-5 py-3 font-medium">Stok</th>
               <th class="px-5 py-3 font-medium">Terjual</th>
+              <th class="px-5 py-3 font-medium">Kadaluarsa</th>
               <th class="px-5 py-3 font-medium">Status</th>
               <th class="px-5 py-3 font-medium text-right">Aksi</th>
             </tr>
@@ -42,6 +43,12 @@
                 {{ p.stok }} {{ p.satuan || 'pak' }}
               </td>
               <td class="px-5 py-3 text-gray-500">{{ p.terjual }}</td>
+              <td class="px-5 py-3">
+                <div class="text-sm text-gray-600">{{ formatDateShort(p.tanggalKadaluarsa) }}</div>
+                <div class="text-xs text-gray-400">
+                  {{ daysUntilExpiry(p.tanggalKadaluarsa) !== null ? `Kadaluarsa dalam ${daysUntilExpiry(p.tanggalKadaluarsa)} hari` : '-' }}
+                </div>
+              </td>
               <td class="px-5 py-3">
                 <span class="badge" :class="p.status === 'Tersedia' ? 'badge-green' : 'badge-red'">
                   {{ p.status }}
@@ -96,6 +103,10 @@
               <label class="text-sm font-medium text-gray-700 block mb-1">URL Gambar</label>
               <input v-model="form.gambar" type="text" class="input-field" placeholder="https://..." />
             </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Tanggal Kadaluarsa</label>
+              <input v-model="form.tanggalKadaluarsa" type="date" class="input-field" />
+            </div>
 
             <div class="flex gap-3 pt-3">
               <button type="button" @click="closeModal" class="btn-outline flex-1">Batal</button>
@@ -126,7 +137,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../db/LocalDb'
-import { formatRupiah } from '../composables/useFormat'
+import { formatRupiah, formatDateShort, daysUntilExpiry } from '../composables/useFormat'
 import { useAuth } from '../composables/useAuth'
 import { featureLevel } from '../composables/useRoleAccess'
 
@@ -147,7 +158,8 @@ const form = ref({
   harga: 0,
   hargaModal: 0,
   stok: 0,
-  gambar: ''
+  gambar: '',
+  tanggalKadaluarsa: ''
 })
 
 const filteredProducts = computed(() => {
@@ -162,7 +174,7 @@ async function loadProducts() {
 
 function openAddModal() {
   editingProduct.value = null
-  form.value = { nama: '', kategori: 'Daging', harga: 0, hargaModal: 0, stok: 0, gambar: '' }
+  form.value = { nama: '', kategori: 'Daging', harga: 0, hargaModal: 0, stok: 0, gambar: '', tanggalKadaluarsa: '' }
   showModal.value = true
 }
 

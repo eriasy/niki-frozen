@@ -8,8 +8,10 @@
       🔔
       <span
         v-if="criticalProducts.length > 0"
-        class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"
-      ></span>
+        class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold"
+      >
+        {{ criticalProducts.length }}
+      </span>
     </button>
 
     <Transition name="dropdown">

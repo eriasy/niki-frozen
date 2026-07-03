@@ -28,6 +28,19 @@ db.version(2).stores({
   })
 })
 
+// v3: tambah tanggalKadaluarsa (expiration date) di products
+db.version(3).stores({
+  products: '++id, nama, kategori, harga, hargaModal, stok, terjual, status, gambar, tanggalKadaluarsa',
+  transactions: '++id, kode, tanggal, waktu, items, subtotal, ppn, diskon, total, metode, kasir',
+  users: '++id, username, password, nama, role'
+}).upgrade(async tx => {
+  await tx.table('products').toCollection().modify(product => {
+    if (product.tanggalKadaluarsa === undefined) {
+      product.tanggalKadaluarsa = '2026-12-28'
+    }
+  })
+})
+
 // ---------- Helpers ----------
 function formatKode(n) {
   return `TRX-${2400 + n}`
@@ -43,7 +56,8 @@ const seedProducts = [
     stok: 48,
     terjual: 214,
     status: 'Tersedia',
-    gambar: '/images/bakso-sapi-premium.jpg'
+    gambar: '/images/bakso-sapi-premium.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Udang Kupas Beku',
@@ -53,7 +67,8 @@ const seedProducts = [
     stok: 32,
     terjual: 187,
     status: 'Tersedia',
-    gambar: '/images/udang-kupas-beku.jpg'
+    gambar: '/images/udang-kupas-beku.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Nugget Ayam Crispy',
@@ -63,7 +78,8 @@ const seedProducts = [
     stok: 5,
     terjual: 312,
     status: 'Kritis',
-    gambar: '/images/nugget-ayam-crispy.jpg'
+    gambar: '/images/nugget-ayam-crispy.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Edamame Beku',
@@ -73,7 +89,8 @@ const seedProducts = [
     stok: 60,
     terjual: 96,
     status: 'Tersedia',
-    gambar: '/images/edamame-beku.jpg'
+    gambar: '/images/edamame-beku.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Es Krim Vanila',
@@ -83,7 +100,8 @@ const seedProducts = [
     stok: 24,
     terjual: 156,
     status: 'Tersedia',
-    gambar: '/images/es-krim-vanila.jpg'
+    gambar: '/images/es-krim-vanila.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Cumi Goreng Tepung',
@@ -93,7 +111,8 @@ const seedProducts = [
     stok: 18,
     terjual: 143,
     status: 'Tersedia',
-    gambar: '/images/cumi-goreng-tepung.jpg'
+    gambar: '/images/cumi-goreng-tepung.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Kentang Goreng Beku',
@@ -103,7 +122,8 @@ const seedProducts = [
     stok: 3,
     terjual: 278,
     status: 'Kritis',
-    gambar: '/images/kentang-goreng-beku.jpg'
+    gambar: '/images/kentang-goreng-beku.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Jus Jeruk Frozen',
@@ -113,7 +133,8 @@ const seedProducts = [
     stok: 40,
     terjual: 89,
     status: 'Tersedia',
-    gambar: '/images/jus-jeruk-frozen.jpg'
+    gambar: '/images/jus-jeruk-frozen.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Sosis Sapi Jumbo',
@@ -123,7 +144,8 @@ const seedProducts = [
     stok: 55,
     terjual: 201,
     status: 'Tersedia',
-    gambar: '/images/sosis-sapi-jumbo.jpg'
+    gambar: '/images/sosis-sapi-jumbo.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Ikan Dori Fillet',
@@ -133,7 +155,8 @@ const seedProducts = [
     stok: 7,
     terjual: 121,
     status: 'Kritis',
-    gambar: '/images/ikan-dori-fillet.jpg'
+    gambar: '/images/ikan-dori-fillet.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Wortel Beku Slice',
@@ -143,7 +166,8 @@ const seedProducts = [
     stok: 70,
     terjual: 64,
     status: 'Tersedia',
-    gambar: '/images/wortel-beku-slice.jpg'
+    gambar: '/images/wortel-beku-slice.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   },
   {
     nama: 'Puding Cokelat Cup',
@@ -153,7 +177,8 @@ const seedProducts = [
     stok: 45,
     terjual: 132,
     status: 'Tersedia',
-    gambar: '/images/puding-coklat-cup.jpg'
+    gambar: '/images/puding-coklat-cup.jpg',
+    tanggalKadaluarsa: '2026-12-28'
   }
 ]
 

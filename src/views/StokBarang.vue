@@ -37,6 +37,7 @@
               <th class="px-5 py-3 font-medium">Produk</th>
               <th class="px-5 py-3 font-medium">Kategori</th>
               <th class="px-5 py-3 font-medium">Stok Saat Ini</th>
+              <th class="px-5 py-3 font-medium">Kadaluarsa</th>
               <th class="px-5 py-3 font-medium">Status</th>
               <th v-if="canManage" class="px-5 py-3 font-medium text-right">Sesuaikan Stok</th>
             </tr>
@@ -62,6 +63,12 @@
                     ></div>
                   </div>
                   <span :class="p.stok <= 10 ? 'text-red-500 font-semibold' : 'text-gray-700'">{{ p.stok }} pak</span>
+                </div>
+              </td>
+              <td class="px-5 py-3">
+                <div class="text-sm text-gray-600">{{ formatDateShort(p.tanggalKadaluarsa) }}</div>
+                <div class="text-xs text-gray-400">
+                  {{ daysUntilExpiry(p.tanggalKadaluarsa) !== null ? `Kadaluarsa dalam ${daysUntilExpiry(p.tanggalKadaluarsa)} hari` : '-' }}
                 </div>
               </td>
               <td class="px-5 py-3">
@@ -104,6 +111,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getAllProducts, updateProduct } from '../db/LocalDb'
+import { formatDateShort, daysUntilExpiry } from '../composables/useFormat'
 import { useAuth } from '../composables/useAuth'
 import { featureLevel } from '../composables/useRoleAccess'
 

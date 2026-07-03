@@ -23,6 +23,7 @@
     <div class="p-3">
       <p class="text-sm font-semibold text-gray-800 truncate">{{ product.nama }}</p>
       <p class="text-xs text-gray-400 mt-0.5">Stok: {{ product.stok }} pak</p>
+      <p class="text-xs text-gray-400">Kd: {{ formatDateShort(product.tanggalKadaluarsa) }}</p>
       <div class="flex items-center justify-between mt-2">
         <span class="text-sm font-bold text-brand-600">{{ formatRupiahShort(product.harga) }}</span>
         <button
@@ -38,7 +39,7 @@
 </template>
 
 <script setup>
-import { formatRupiahShort } from '../composables/useFormat'
+import { formatRupiahShort, formatDateShort } from '../composables/useFormat'
 
 defineProps({
   product: { type: Object, required: true }
