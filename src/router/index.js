@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { canAccess, defaultRouteForRole } from '../composables/useRoleAccess'
 
 import LoginKasir from '../views/LoginKasir.vue'
 import Dashboard from '../views/Dashboard.vue'
@@ -64,13 +65,27 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, currentUser } = useAuth()
+
+  // Belum login & mau buka halaman privat -> lempar ke login
   if (!to.meta.public && !isAuthenticated()) {
     return { name: 'login' }
   }
+
+  // Udah login tapi buka /login -> lempar ke halaman default role-nya
   if (to.name === 'login' && isAuthenticated()) {
-    return { name: 'dashboard' }
+    return { path: defaultRouteForRole(currentUser.value?.role) }
   }
+
+  // Sudah login, cek apakah role-nya emang boleh buka path ini
+  // (mencegah akses langsung lewat URL, bukan cuma sembunyiin menu)
+  if (!to.meta.public && isAuthenticated()) {
+    const role = currentUser.value?.role
+    if (!canAccess(role, to.path)) {
+      return { path: defaultRouteForRole(role) }
+    }
+  }
+
   return true
 })
 

@@ -14,7 +14,7 @@
     <!-- Menu -->
     <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto thin-scroll">
       <router-link
-        v-for="item in menuItems"
+        v-for="item in visibleMenuItems"
         :key="item.path"
         :to="item.path"
         class="sidebar-link"
@@ -55,6 +55,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { canAccess } from '../composables/useRoleAccess'
 
 const route = useRoute()
 const router = useRouter()
@@ -68,6 +69,11 @@ const menuItems = [
   { path: '/riwayat', label: 'Riwayat Penjualan', icon: '🕒' },
   { path: '/laporan', label: 'Laporan', icon: '📈' }
 ]
+
+// Cuma tampilin menu yang boleh diakses sama role user yang lagi login
+const visibleMenuItems = computed(() =>
+  menuItems.filter(item => canAccess(currentUser.value?.role, item.path))
+)
 
 const initials = computed(() => {
   const name = currentUser.value?.nama || ''

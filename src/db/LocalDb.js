@@ -134,7 +134,8 @@ const seedUsers = [
   { username: 'rina', password: 'rina123', nama: 'Rina', role: 'Kasir Utama' },
   { username: 'budi', password: 'budi123', nama: 'Budi', role: 'Kasir' },
   { username: 'sari', password: 'sari123', nama: 'Sari', role: 'Kasir' },
-  { username: 'admin', password: 'admin123', nama: 'Admin', role: 'Pemilik Toko' }
+  { username: 'admin', password: 'admin123', nama: 'Admin', role: 'Admin' },
+  { username: 'owner', password: 'owner123', nama: 'Owner', role: 'Pemilik Toko' }
 ]
 
 const seedTransactions = [
@@ -214,6 +215,26 @@ export async function createTransaction(transaction) {
   const count = await db.transactions.count()
   const kode = formatKode(count + 1)
   return db.transactions.add({ ...transaction, kode })
+}
+
+// ---------- Migration: pastikan role Admin & Owner terpisah ----------
+// Untuk database yang udah pernah ke-seed sebelumnya (user 'admin' masih
+// berrole 'Pemilik Toko'), migration ini benerin datanya tanpa perlu reset DB.
+export async function ensureDefaultRoles() {
+  const adminUser = await db.users.where('username').equals('admin').first()
+  if (adminUser && adminUser.role !== 'Admin') {
+    await db.users.update(adminUser.id, { role: 'Admin' })
+  }
+
+  const ownerExists = await db.users.where('role').equals('Pemilik Toko').first()
+  if (!ownerExists) {
+    await db.users.add({
+      username: 'owner',
+      password: 'owner123',
+      nama: 'Owner',
+      role: 'Pemilik Toko'
+    })
+  }
 }
 
 // ---------- User / Auth Queries ----------
