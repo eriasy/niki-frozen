@@ -49,7 +49,7 @@
               </td>
               <td class="px-5 py-3 text-right">
                 <button @click="openEditModal(p)" class="text-gray-400 hover:text-brand-600 px-1.5">✏️</button>
-                <button @click="confirmDelete(p)" class="text-gray-400 hover:text-red-500 px-1.5">🗑️</button>
+                <button v-if="canDelete" @click="confirmDelete(p)" class="text-gray-400 hover:text-red-500 px-1.5">🗑️</button>
               </td>
             </tr>
           </tbody>
@@ -78,19 +78,23 @@
                 </select>
               </div>
               <div>
-                <label class="text-sm font-medium text-gray-700 block mb-1">Harga (Rp)</label>
+                <label class="text-sm font-medium text-gray-700 block mb-1">Harga Jual (Rp)</label>
                 <input v-model.number="form.harga" type="number" min="0" required class="input-field" />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
+                <label class="text-sm font-medium text-gray-700 block mb-1">Harga Modal (Rp)</label>
+                <input v-model.number="form.hargaModal" type="number" min="0" class="input-field" placeholder="Harga beli/pokok" />
+              </div>
+              <div>
                 <label class="text-sm font-medium text-gray-700 block mb-1">Stok</label>
                 <input v-model.number="form.stok" type="number" min="0" required class="input-field" />
               </div>
-              <div>
-                <label class="text-sm font-medium text-gray-700 block mb-1">URL Gambar</label>
-                <input v-model="form.gambar" type="text" class="input-field" placeholder="https://..." />
-              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">URL Gambar</label>
+              <input v-model="form.gambar" type="text" class="input-field" placeholder="https://..." />
             </div>
 
             <div class="flex gap-3 pt-3">
@@ -123,6 +127,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../db/LocalDb'
 import { formatRupiah } from '../composables/useFormat'
+import { useAuth } from '../composables/useAuth'
+import { featureLevel } from '../composables/useRoleAccess'
+
+const { currentUser } = useAuth()
+const canDelete = computed(() => featureLevel(currentUser.value?.role, 'produk') === 'penuh')
 
 const allProducts = ref([])
 const searchQuery = ref('')
@@ -136,6 +145,7 @@ const form = ref({
   nama: '',
   kategori: 'Daging',
   harga: 0,
+  hargaModal: 0,
   stok: 0,
   gambar: ''
 })
@@ -152,7 +162,7 @@ async function loadProducts() {
 
 function openAddModal() {
   editingProduct.value = null
-  form.value = { nama: '', kategori: 'Daging', harga: 0, stok: 0, gambar: '' }
+  form.value = { nama: '', kategori: 'Daging', harga: 0, hargaModal: 0, stok: 0, gambar: '' }
   showModal.value = true
 }
 

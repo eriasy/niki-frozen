@@ -38,7 +38,7 @@
               <th class="px-5 py-3 font-medium">Kategori</th>
               <th class="px-5 py-3 font-medium">Stok Saat Ini</th>
               <th class="px-5 py-3 font-medium">Status</th>
-              <th class="px-5 py-3 font-medium text-right">Sesuaikan Stok</th>
+              <th v-if="canManage" class="px-5 py-3 font-medium text-right">Sesuaikan Stok</th>
             </tr>
           </thead>
           <tbody>
@@ -67,7 +67,7 @@
               <td class="px-5 py-3">
                 <span class="badge" :class="statusBadgeClass(p.status)">{{ p.status }}</span>
               </td>
-              <td class="px-5 py-3">
+              <td v-if="canManage" class="px-5 py-3">
                 <div class="flex items-center gap-1.5 justify-end">
                   <button @click="adjustStock(p, -1)" class="w-7 h-7 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500 flex items-center justify-center">−</button>
                   <button @click="adjustStock(p, 1)" class="w-7 h-7 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500 flex items-center justify-center">+</button>
@@ -104,6 +104,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getAllProducts, updateProduct } from '../db/LocalDb'
+import { useAuth } from '../composables/useAuth'
+import { featureLevel } from '../composables/useRoleAccess'
+
+const { currentUser } = useAuth()
+const canManage = computed(() => featureLevel(currentUser.value?.role, 'stok') === 'kelola')
 
 const allProducts = ref([])
 const searchQuery = ref('')

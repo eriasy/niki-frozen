@@ -13,6 +13,21 @@ db.version(1).stores({
   users: '++id, username, password, nama, role'
 })
 
+// v2: tambah hargaModal (harga beli/pokok) di products, dipakai buat hitung
+// profit di Laporan (khusus Owner). Produk lama otomatis dikasih estimasi
+// hargaModal 65% dari harga jual lewat migration upgrade di bawah.
+db.version(2).stores({
+  products: '++id, nama, kategori, harga, hargaModal, stok, terjual, status, gambar',
+  transactions: '++id, kode, tanggal, waktu, items, subtotal, ppn, diskon, total, metode, kasir',
+  users: '++id, username, password, nama, role'
+}).upgrade(async tx => {
+  await tx.table('products').toCollection().modify(product => {
+    if (product.hargaModal === undefined) {
+      product.hargaModal = Math.round(product.harga * 0.65)
+    }
+  })
+})
+
 // ---------- Helpers ----------
 function formatKode(n) {
   return `TRX-${2400 + n}`
@@ -24,6 +39,7 @@ const seedProducts = [
     nama: 'Bakso Sapi Premium',
     kategori: 'Daging',
     harga: 35000,
+    hargaModal: 22750,
     stok: 48,
     terjual: 214,
     status: 'Tersedia',
@@ -33,6 +49,7 @@ const seedProducts = [
     nama: 'Udang Kupas Beku',
     kategori: 'Seafood',
     harga: 52000,
+    hargaModal: 33800,
     stok: 32,
     terjual: 187,
     status: 'Tersedia',
@@ -42,6 +59,7 @@ const seedProducts = [
     nama: 'Nugget Ayam Crispy',
     kategori: 'Daging',
     harga: 28000,
+    hargaModal: 18200,
     stok: 5,
     terjual: 312,
     status: 'Kritis',
@@ -51,6 +69,7 @@ const seedProducts = [
     nama: 'Edamame Beku',
     kategori: 'Sayuran',
     harga: 18000,
+    hargaModal: 11700,
     stok: 60,
     terjual: 96,
     status: 'Tersedia',
@@ -60,6 +79,7 @@ const seedProducts = [
     nama: 'Es Krim Vanila',
     kategori: 'Dessert',
     harga: 45000,
+    hargaModal: 29250,
     stok: 24,
     terjual: 156,
     status: 'Tersedia',
@@ -69,6 +89,7 @@ const seedProducts = [
     nama: 'Cumi Goreng Tepung',
     kategori: 'Seafood',
     harga: 42000,
+    hargaModal: 27300,
     stok: 18,
     terjual: 143,
     status: 'Tersedia',
@@ -78,6 +99,7 @@ const seedProducts = [
     nama: 'Kentang Goreng Beku',
     kategori: 'Sayuran',
     harga: 22000,
+    hargaModal: 14300,
     stok: 3,
     terjual: 278,
     status: 'Kritis',
@@ -87,6 +109,7 @@ const seedProducts = [
     nama: 'Jus Jeruk Frozen',
     kategori: 'Minuman',
     harga: 15000,
+    hargaModal: 9750,
     stok: 40,
     terjual: 89,
     status: 'Tersedia',
@@ -96,6 +119,7 @@ const seedProducts = [
     nama: 'Sosis Sapi Jumbo',
     kategori: 'Daging',
     harga: 32000,
+    hargaModal: 20800,
     stok: 55,
     terjual: 201,
     status: 'Tersedia',
@@ -105,6 +129,7 @@ const seedProducts = [
     nama: 'Ikan Dori Fillet',
     kategori: 'Seafood',
     harga: 48000,
+    hargaModal: 31200,
     stok: 7,
     terjual: 121,
     status: 'Kritis',
@@ -114,6 +139,7 @@ const seedProducts = [
     nama: 'Wortel Beku Slice',
     kategori: 'Sayuran',
     harga: 16000,
+    hargaModal: 10400,
     stok: 70,
     terjual: 64,
     status: 'Tersedia',
@@ -123,6 +149,7 @@ const seedProducts = [
     nama: 'Puding Cokelat Cup',
     kategori: 'Dessert',
     harga: 12000,
+    hargaModal: 7800,
     stok: 45,
     terjual: 132,
     status: 'Tersedia',
@@ -250,6 +277,27 @@ export async function updateUserPassword(id, newPassword) {
   return db.users.update(id, { password: newPassword })
 }
 
+// ---------- Manajemen Pengguna (khusus Admin & Owner) ----------
+export async function getAllUsers() {
+  return db.users.toArray()
+}
+
+export async function addUser(user) {
+  const existing = await db.users.where('username').equals(user.username).first()
+  if (existing) {
+    throw new Error('Username sudah dipakai.')
+  }
+  return db.users.add(user)
+}
+
+export async function updateUser(id, changes) {
+  return db.users.update(id, changes)
+}
+
+export async function deleteUser(id) {
+  return db.users.delete(id)
+}
+
 // ---------- Stats for Dashboard ----------
 export async function getDashboardStats() {
   const transactions = await db.transactions.toArray()
@@ -270,6 +318,23 @@ export async function getDashboardStats() {
     stokKritisCount: stokKritis.length,
     stokKritisList: stokKritis
   }
+}
+
+// ---------- Profit (khusus Owner) ----------
+export async function getProfitSummary() {
+  const products = await db.products.toArray()
+  const totalProfit = products.reduce((sum, p) => sum + (p.harga - (p.hargaModal || 0)) * p.terjual, 0)
+  const totalModalTerjual = products.reduce((sum, p) => sum + (p.hargaModal || 0) * p.terjual, 0)
+  const detail = products.map(p => ({
+    id: p.id,
+    nama: p.nama,
+    kategori: p.kategori,
+    terjual: p.terjual,
+    profitPerUnit: p.harga - (p.hargaModal || 0),
+    totalProfit: (p.harga - (p.hargaModal || 0)) * p.terjual
+  })).sort((a, b) => b.totalProfit - a.totalProfit)
+
+  return { totalProfit, totalModalTerjual, detail }
 }
 
 export default db

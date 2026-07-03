@@ -101,6 +101,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { getAllTransactions } from '../db/LocalDb'
 import { formatRupiah, formatRupiahShort } from '../composables/useFormat'
+import { useAuth } from '../composables/useAuth'
+import { featureLevel } from '../composables/useRoleAccess'
+
+const { currentUser } = useAuth()
+const riwayatScope = computed(() => featureLevel(currentUser.value?.role, 'riwayat'))
 
 const allTransactions = ref([])
 const searchQuery = ref('')
@@ -110,6 +115,10 @@ const selectedTransaction = ref(null)
 
 const filteredTransactions = computed(() => {
   let list = allTransactions.value
+  // Kasir cuma boleh liat transaksi yang dia layani sendiri
+  if (riwayatScope.value === 'sendiri') {
+    list = list.filter(t => t.kasir === currentUser.value?.nama)
+  }
   if (filterMetode.value !== 'Semua') {
     list = list.filter(t => t.metode === filterMetode.value)
   }

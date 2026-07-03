@@ -9,6 +9,7 @@ import Produk from '../views/Produk.vue'
 import StokBarang from '../views/StokBarang.vue'
 import RiwayatPenjualan from '../views/RiwayatPenjualan.vue'
 import Laporan from '../views/Laporan.vue'
+import ManajemenPengguna from '../views/ManajemenPengguna.vue'
 import Profil from '../views/Profil.vue'
 
 const routes = [
@@ -47,6 +48,11 @@ const routes = [
     path: '/laporan',
     name: 'laporan',
     component: Laporan
+  },
+  {
+    path: '/pengguna',
+    name: 'pengguna',
+    component: ManajemenPengguna
   },
   {
     path: '/profil',

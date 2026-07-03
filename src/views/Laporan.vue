@@ -76,6 +76,47 @@
         </table>
       </div>
     </div>
+
+    <!-- Section Profit — khusus Owner (Admin cuma liat laporan operasional di atas) -->
+    <div v-if="laporanLevel === 'penuh'" class="space-y-4">
+      <div class="flex items-center gap-2">
+        <h3 class="font-bold text-gray-800">💰 Laporan Profit</h3>
+        <span class="badge bg-purple-50 text-purple-600">Khusus Owner</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <DashboardCard label="Total Profit" :value="formatRupiahShort(profitSummary.totalProfit)" icon="💵" iconBg="bg-purple-50" />
+        <DashboardCard label="Total Modal Terjual" :value="formatRupiahShort(profitSummary.totalModalTerjual)" icon="🏷️" iconBg="bg-gray-100" />
+      </div>
+
+      <div class="card !p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h3 class="font-bold text-gray-800">Profit per Produk</h3>
+        </div>
+        <div class="overflow-x-auto thin-scroll">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr class="text-left text-xs text-gray-400 uppercase">
+                <th class="px-5 py-3 font-medium">Produk</th>
+                <th class="px-5 py-3 font-medium">Kategori</th>
+                <th class="px-5 py-3 font-medium">Terjual</th>
+                <th class="px-5 py-3 font-medium">Profit / Unit</th>
+                <th class="px-5 py-3 font-medium">Total Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in profitSummary.detail" :key="p.id" class="border-t border-gray-50">
+                <td class="px-5 py-3 font-medium text-gray-800">{{ p.nama }}</td>
+                <td class="px-5 py-3"><span class="badge bg-gray-100 text-gray-500">{{ p.kategori }}</span></td>
+                <td class="px-5 py-3 text-gray-700">{{ p.terjual }}</td>
+                <td class="px-5 py-3 text-gray-700">{{ formatRupiah(p.profitPerUnit) }}</td>
+                <td class="px-5 py-3 font-semibold text-brand-600">{{ formatRupiah(p.totalProfit) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -83,11 +124,17 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import Chart from 'chart.js/auto'
 import DashboardCard from '../components/DashboardCard.vue'
-import { getAllProducts, getAllTransactions } from '../db/LocalDb'
+import { getAllProducts, getAllTransactions, getProfitSummary } from '../db/LocalDb'
 import { formatRupiah, formatRupiahShort } from '../composables/useFormat'
+import { useAuth } from '../composables/useAuth'
+import { featureLevel } from '../composables/useRoleAccess'
+
+const { currentUser } = useAuth()
+const laporanLevel = computed(() => featureLevel(currentUser.value?.role, 'laporan'))
 
 const allProducts = ref([])
 const allTransactions = ref([])
+const profitSummary = ref({ totalProfit: 0, totalModalTerjual: 0, detail: [] })
 const periode = ref('Minggu Ini')
 const periodeOptions = ['Hari Ini', 'Minggu Ini', 'Bulan Ini', 'Semua']
 
@@ -125,6 +172,9 @@ const metodeBreakdown = computed(() => {
 async function loadData() {
   allProducts.value = await getAllProducts()
   allTransactions.value = await getAllTransactions()
+  if (laporanLevel.value === 'penuh') {
+    profitSummary.value = await getProfitSummary()
+  }
 }
 
 function renderCategoryChart() {

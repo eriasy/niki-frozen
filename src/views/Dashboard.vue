@@ -35,7 +35,7 @@
       />
     </div>
 
-    <!-- Chart -->
+    <!-- Chart: muncul buat semua yang punya akses dashboard (ringkas & penuh) -->
     <div class="card">
       <div class="flex items-center justify-between mb-4">
         <div>
@@ -50,7 +50,7 @@
     </div>
 
     <!-- Stok kritis & Transaksi terakhir -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <div v-if="dashboardLevel === 'penuh'" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
       <div class="card">
         <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
           <span class="text-orange-500">⚠️</span> Stok Kritis
@@ -117,15 +117,26 @@
         </div>
       </div>
     </div>
+
+    <!-- Versi ringkas: pesan singkat pengganti tabel transaksi -->
+    <div v-else class="card text-center py-6">
+      <p class="text-sm text-gray-400">Detail transaksi terakhir hanya tersedia untuk Admin & Owner.</p>
+      <router-link to="/riwayat" class="text-sm text-brand-600 font-medium hover:underline mt-2 inline-block">Lihat Riwayat Penjualan →</router-link>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
 import DashboardCard from '../components/DashboardCard.vue'
 import { getDashboardStats, getRecentTransactions } from '../db/LocalDb'
 import { formatRupiah, formatRupiahShort } from '../composables/useFormat'
+import { useAuth } from '../composables/useAuth'
+import { featureLevel } from '../composables/useRoleAccess'
+
+const { currentUser } = useAuth()
+const dashboardLevel = computed(() => featureLevel(currentUser.value?.role, 'dashboard'))
 
 const stats = ref({
   omsetHariIni: 0,

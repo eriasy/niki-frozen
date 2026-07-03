@@ -15,8 +15,8 @@
       </button>
     </div>
 
-    <!-- Today's activity summary -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <!-- Today's activity summary: cuma relevan buat yang megang kasir langsung -->
+    <div v-if="isKasirRole" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div class="card">
         <p class="text-xs font-medium text-gray-400 uppercase">Transaksi Hari Ini</p>
         <p class="text-2xl font-bold text-gray-800 mt-1.5">{{ myStats.totalTransaksi }}</p>
@@ -55,8 +55,8 @@
       </form>
     </div>
 
-    <!-- Recent transactions by this cashier -->
-    <div class="card !p-0 overflow-hidden">
+    <!-- Recent transactions by this cashier: cuma relevan buat yang megang kasir langsung -->
+    <div v-if="isKasirRole" class="card !p-0 overflow-hidden">
       <div class="px-5 py-4 border-b border-gray-100">
         <h3 class="font-bold text-gray-800">Transaksi Terbaru Saya</h3>
       </div>
@@ -97,9 +97,14 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { getAllTransactions, getUserByUsername, updateUserPassword } from '../db/LocalDb'
 import { formatRupiah, formatRupiahShort } from '../composables/useFormat'
+import { canAccess } from '../composables/useRoleAccess'
 
 const router = useRouter()
 const { currentUser, logout } = useAuth()
+
+// Cuma role yang beneran megang kasir (punya akses halaman Transaksi Kasir)
+// yang perlu liat statistik "transaksi yang saya layani"
+const isKasirRole = computed(() => canAccess(currentUser.value?.role, '/kasir'))
 
 const allTransactions = ref([])
 const oldPassword = ref('')
