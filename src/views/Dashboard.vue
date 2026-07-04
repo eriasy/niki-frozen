@@ -39,13 +39,50 @@
     <div class="card">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h3 class="font-bold text-gray-800">Penjualan Minggu Ini</h3>
-          <p class="text-xs text-gray-400">Omset harian (Rp)</p>
+          <h3 class="font-bold text-gray-800">Penjualan 7 Hari Terakhir</h3>
+          <p class="text-xs text-gray-400">Omset gabungan harian (Rp)</p>
         </div>
-        <span class="badge badge-green">+18.2% minggu lalu</span>
+        <span class="badge badge-green">Live dari transaksi</span>
       </div>
       <div class="h-64">
-        <canvas ref="chartCanvas"></canvas>
+        <canvas ref="salesChartCanvas"></canvas>
+      </div>
+    </div>
+
+    <div v-if="dashboardLevel === 'penuh'" class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-gray-800">Komparasi Antar Cabang</h3>
+            <p class="text-xs text-gray-400">Omset per cabang</p>
+          </div>
+          <span class="badge badge-orange">Periode aktif</span>
+        </div>
+        <div class="h-64">
+          <canvas ref="branchChartCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="font-bold text-gray-800 mb-4">Ringkasan Operasional</h3>
+        <div class="space-y-3 text-sm text-gray-600">
+          <div class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+            <span>Omset hari ini</span>
+            <span class="font-semibold text-gray-800">{{ formatRupiahShort(stats.omsetHariIni) }}</span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+            <span>Transaksi hari ini</span>
+            <span class="font-semibold text-gray-800">{{ stats.totalTransaksiHariIni }} trx</span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+            <span>Cabang paling aktif</span>
+            <span class="font-semibold text-gray-800">{{ branchSeries.labels[0] || '-' }}</span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+            <span>Target pencapaian</span>
+            <span class="font-semibold text-brand-600">{{ branchSeries.data[0] ? formatRupiahShort(branchSeries.data[0]) : 'Rp 0' }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -130,7 +167,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
 import DashboardCard from '../components/DashboardCard.vue'
-import { getDashboardStats, getRecentTransactions } from '../db/LocalDb'
+import { getDashboardStats, getRecentTransactions, getAllTransactions } from '../db/LocalDb'
 import { formatRupiah, formatRupiahShort } from '../composables/useFormat'
 import { useAuth } from '../composables/useAuth'
 import { featureLevel } from '../composables/useRoleAccess'
@@ -146,37 +183,77 @@ const stats = ref({
   stokKritisList: []
 })
 const recentTransactions = ref([])
-const chartCanvas = ref(null)
-let chartInstance = null
+const transactions = ref([])
+const salesChartCanvas = ref(null)
+const branchChartCanvas = ref(null)
+let salesChartInstance = null
+let branchChartInstance = null
 
-const weeklyLabels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-const weeklyData = [1900000, 2100000, 1700000, 2400000, 2900000, 3400000, 3100000]
+function buildSalesSeries(data) {
+  const labels = []
+  const values = []
+  const start = new Date()
+  start.setDate(start.getDate() - 6)
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(start)
+    date.setDate(start.getDate() + i)
+    const key = date.toISOString().slice(0, 10)
+    labels.push(date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }))
+    const total = data.filter(item => item.tanggal === key).reduce((sum, item) => sum + (item.total || 0), 0)
+    values.push(total)
+  }
+
+  return { labels, values }
+}
+
+function buildBranchSeries(data) {
+  const totals = data.reduce((acc, item) => {
+    const branch = item.cabang || 'Cabang Utama'
+    acc[branch] = (acc[branch] || 0) + (item.total || 0)
+    return acc
+  }, {})
+
+  const entries = Object.entries(totals).sort((a, b) => b[1] - a[1])
+  return {
+    labels: entries.map(([name]) => name),
+    data: entries.map(([, total]) => total)
+  }
+}
+
+const salesSeries = computed(() => buildSalesSeries(transactions.value))
+const branchSeries = computed(() => buildBranchSeries(transactions.value))
 
 async function loadData() {
   stats.value = await getDashboardStats()
   recentTransactions.value = await getRecentTransactions(5)
+  transactions.value = await getAllTransactions()
 }
 
-function renderChart() {
-  if (chartInstance) chartInstance.destroy()
-  const ctx = chartCanvas.value.getContext('2d')
+function renderCharts() {
+  if (salesChartInstance) salesChartInstance.destroy()
+  if (branchChartInstance) branchChartInstance.destroy()
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 250)
-  gradient.addColorStop(0, 'rgba(31, 140, 77, 0.25)')
-  gradient.addColorStop(1, 'rgba(31, 140, 77, 0)')
+  if (!salesChartCanvas.value) return
 
-  chartInstance = new Chart(ctx, {
+  const salesCtx = salesChartCanvas.value.getContext('2d')
+
+  const salesGradient = salesCtx.createLinearGradient(0, 0, 0, 250)
+  salesGradient.addColorStop(0, 'rgba(31, 140, 77, 0.25)')
+  salesGradient.addColorStop(1, 'rgba(31, 140, 77, 0)')
+
+  salesChartInstance = new Chart(salesCtx, {
     type: 'line',
     data: {
-      labels: weeklyLabels,
+      labels: salesSeries.value.labels,
       datasets: [
         {
-          label: 'Omset',
-          data: weeklyData,
+          label: 'Omset Gabungan',
+          data: salesSeries.value.values,
           borderColor: '#1f8c4d',
-          backgroundColor: gradient,
+          backgroundColor: salesGradient,
           fill: true,
-          tension: 0.4,
+          tension: 0.35,
           pointBackgroundColor: '#1f8c4d',
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
@@ -214,11 +291,58 @@ function renderChart() {
       }
     }
   })
+
+  if (branchChartCanvas.value) {
+    const branchCtx = branchChartCanvas.value.getContext('2d')
+
+    branchChartInstance = new Chart(branchCtx, {
+      type: 'bar',
+      data: {
+        labels: branchSeries.value.labels,
+        datasets: [
+          {
+            label: 'Omset Cabang',
+            data: branchSeries.value.data,
+            backgroundColor: ['#1f8c4d', '#f59e0b', '#3b82f6'],
+            borderRadius: 8
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1f2937',
+            padding: 10,
+            callbacks: {
+              label: (ctx) => `Omset: Rp ${ctx.parsed.y.toLocaleString('id-ID')}`
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback: (val) => 'Rp ' + (val / 1000000).toFixed(1) + 'jt',
+              color: '#9ca3af',
+              font: { size: 11 }
+            },
+            grid: { color: '#f3f4f6' }
+          },
+          x: {
+            ticks: { color: '#9ca3af', font: { size: 11 } },
+            grid: { display: false }
+          }
+        }
+      }
+    })
+  }
 }
 
 onMounted(async () => {
   await loadData()
   await nextTick()
-  renderChart()
+  renderCharts()
 })
 </script>

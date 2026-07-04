@@ -41,6 +41,25 @@ db.version(3).stores({
   })
 })
 
+// v4: tambah cabang untuk transaksi & user agar dashboard bisa komparasi antar cabang
+db.version(4).stores({
+  products: '++id, nama, kategori, harga, hargaModal, stok, terjual, status, gambar, tanggalKadaluarsa',
+  transactions: '++id, kode, tanggal, waktu, items, subtotal, ppn, diskon, total, metode, kasir, cabang',
+  users: '++id, username, password, nama, role, cabang'
+}).upgrade(async tx => {
+  await tx.table('transactions').toCollection().modify(transaction => {
+    if (transaction.cabang === undefined) {
+      transaction.cabang = 'Cabang Utama'
+    }
+  })
+
+  await tx.table('users').toCollection().modify(user => {
+    if (user.cabang === undefined) {
+      user.cabang = 'Cabang Utama'
+    }
+  })
+})
+
 // ---------- Helpers ----------
 function formatKode(n) {
   return `TRX-${2400 + n}`
@@ -183,19 +202,19 @@ const seedProducts = [
 ]
 
 const seedUsers = [
-  { username: 'rina', password: 'rina123', nama: 'Rina', role: 'Kasir Utama' },
-  { username: 'budi', password: 'budi123', nama: 'Budi', role: 'Kasir' },
-  { username: 'sari', password: 'sari123', nama: 'Sari', role: 'Kasir' },
-  { username: 'admin', password: 'admin123', nama: 'Admin', role: 'Admin' },
-  { username: 'owner', password: 'owner123', nama: 'Owner', role: 'Pemilik Toko' }
+  { username: 'rina', password: 'rina123', nama: 'Rina', role: 'Kasir Utama', cabang: 'Cabang Pusat' },
+  { username: 'budi', password: 'budi123', nama: 'Budi', role: 'Kasir', cabang: 'Cabang Timur' },
+  { username: 'sari', password: 'sari123', nama: 'Sari', role: 'Kasir', cabang: 'Cabang Barat' },
+  { username: 'admin', password: 'admin123', nama: 'Admin', role: 'Admin', cabang: 'Cabang Pusat' },
+  { username: 'owner', password: 'owner123', nama: 'Owner', role: 'Pemilik Toko', cabang: 'Cabang Pusat' }
 ]
 
 const seedTransactions = [
-  { kode: 'TRX-2408', tanggal: today(), waktu: '14:32', items: 4, subtotal: 115315, ppn: 12685, diskon: 0, total: 128000, metode: 'QRIS', kasir: 'Rina' },
-  { kode: 'TRX-2407', tanggal: today(), waktu: '14:18', items: 2, subtotal: 63063, ppn: 6937, diskon: 0, total: 70000, metode: 'Cash', kasir: 'Budi' },
-  { kode: 'TRX-2406', tanggal: today(), waktu: '13:55', items: 7, subtotal: 220720, ppn: 24280, diskon: 0, total: 245000, metode: 'Transfer', kasir: 'Rina' },
-  { kode: 'TRX-2405', tanggal: today(), waktu: '13:40', items: 1, subtotal: 31531, ppn: 3469, diskon: 0, total: 35000, metode: 'Cash', kasir: 'Sari' },
-  { kode: 'TRX-2404', tanggal: today(), waktu: '13:12', items: 5, subtotal: 164865, ppn: 18135, diskon: 0, total: 183000, metode: 'QRIS', kasir: 'Budi' }
+  { kode: 'TRX-2408', tanggal: today(), waktu: '14:32', items: 4, subtotal: 115315, ppn: 12685, diskon: 0, total: 128000, metode: 'QRIS', kasir: 'Rina', cabang: 'Cabang Pusat' },
+  { kode: 'TRX-2407', tanggal: today(), waktu: '14:18', items: 2, subtotal: 63063, ppn: 6937, diskon: 0, total: 70000, metode: 'Cash', kasir: 'Budi', cabang: 'Cabang Timur' },
+  { kode: 'TRX-2406', tanggal: today(), waktu: '13:55', items: 7, subtotal: 220720, ppn: 24280, diskon: 0, total: 245000, metode: 'Transfer', kasir: 'Rina', cabang: 'Cabang Pusat' },
+  { kode: 'TRX-2405', tanggal: today(), waktu: '13:40', items: 1, subtotal: 31531, ppn: 3469, diskon: 0, total: 35000, metode: 'Cash', kasir: 'Sari', cabang: 'Cabang Barat' },
+  { kode: 'TRX-2404', tanggal: today(), waktu: '13:12', items: 5, subtotal: 164865, ppn: 18135, diskon: 0, total: 183000, metode: 'QRIS', kasir: 'Budi', cabang: 'Cabang Timur' }
 ]
 
 function today() {
@@ -266,7 +285,8 @@ export async function getRecentTransactions(limit = 5) {
 export async function createTransaction(transaction) {
   const count = await db.transactions.count()
   const kode = formatKode(count + 1)
-  return db.transactions.add({ ...transaction, kode })
+  const cabang = transaction.cabang || 'Cabang Utama'
+  return db.transactions.add({ ...transaction, kode, cabang })
 }
 
 // ---------- Migration: pastikan role Admin & Owner terpisah ----------

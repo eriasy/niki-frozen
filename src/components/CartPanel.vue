@@ -164,7 +164,8 @@ async function handleCheckout() {
       diskon: cart.diskonAmount.value,
       total: cart.grandTotal.value,
       metode: metode.value === 'Tunai' ? 'Cash' : metode.value,
-      kasir: currentUser.value?.nama || 'Kasir'
+      kasir: currentUser.value?.nama || 'Kasir',
+      cabang: currentUser.value?.cabang || 'Cabang Utama'
     })
 
     for (const item of cart.items.value) {

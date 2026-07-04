@@ -32,7 +32,8 @@ export function useAuth() {
       id: user.id,
       username: user.username,
       nama: user.nama,
-      role: user.role
+      role: user.role,
+      cabang: user.cabang || 'Cabang Utama'
     }
     currentUser.value = sessionUser
     saveSession(sessionUser)
