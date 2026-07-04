@@ -2,14 +2,32 @@
   <div class="flex h-full -m-6">
     <!-- Product catalog -->
     <div class="flex-1 overflow-y-auto thin-scroll px-6 py-5">
-      <div class="relative mb-4 max-w-md">
-        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Cari produk..."
-          class="input-field pl-10"
-        />
+      <div class="space-y-3 mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3">
+          <div class="relative flex-1">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">📷</span>
+            <input
+              v-model="scanQuery"
+              @keydown.enter.prevent="handleScanLookup"
+              type="text"
+              placeholder="Scan barcode atau ketik kode..."
+              class="input-field pl-10"
+            />
+          </div>
+          <button @click="handleScanLookup" class="btn-primary h-12 px-6 whitespace-nowrap">
+            Cari
+          </button>
+        </div>
+        <p v-if="scanMessage" class="text-sm text-rose-500">{{ scanMessage }}</p>
+        <div class="relative max-w-md">
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Cari produk..."
+            class="input-field pl-10"
+          />
+        </div>
       </div>
 
       <div class="flex gap-2 mb-5 overflow-x-auto thin-scroll pb-1">
@@ -64,6 +82,8 @@ import { getAllProducts } from '../db/LocalDb'
 const cart = useCart()
 const allProducts = ref([])
 const searchQuery = ref('')
+const scanQuery = ref('')
+const scanMessage = ref('')
 const selectedKategori = ref('Semua')
 const showSuccessToast = ref(false)
 
@@ -85,8 +105,41 @@ async function loadProducts() {
   allProducts.value = await getAllProducts()
 }
 
+function productCode(product) {
+  if (product.kode) return product.kode
+  return `P${String(product.id).padStart(3, '0')}`
+}
+
+function findProductByQuery(query) {
+  const q = query.trim().toLowerCase()
+  if (!q) return null
+  return allProducts.value.find(p => {
+    const code = productCode(p).toLowerCase().replace(/[^a-z0-9]/g, '')
+    const normalized = q.replace(/[^a-z0-9]/g, '')
+    return (
+      code === normalized ||
+      code.endsWith(normalized) ||
+      String(p.id) === normalized ||
+      p.nama.toLowerCase() === q ||
+      p.nama.toLowerCase().includes(q)
+    )
+  })
+}
+
 function handleAdd(product) {
   cart.addItem(product)
+}
+
+function handleScanLookup() {
+  scanMessage.value = ''
+  const match = findProductByQuery(scanQuery.value)
+  if (match) {
+    handleAdd(match)
+    scanMessage.value = `Produk ${productCode(match)} ditambahkan ke keranjang.`
+    scanQuery.value = ''
+    return
+  }
+  scanMessage.value = 'Produk tidak ditemukan. Coba scan lagi atau ketik kode lain.'
 }
 
 async function handleCheckoutSuccess() {

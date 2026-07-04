@@ -80,21 +80,21 @@
       </div>
 
       <input
-        v-if="metode === 'Cash'"
+        v-if="metode === 'Tunai'"
         v-model.number="nominalBayar"
         type="number"
         placeholder="Nominal bayar"
         class="input-field text-sm"
       />
 
-      <div v-if="metode === 'Cash' && nominalBayar > 0" class="flex justify-between text-xs text-gray-500 px-1">
+      <div v-if="metode === 'Tunai' && nominalBayar > 0" class="flex justify-between text-xs text-gray-500 px-1">
         <span>Kembalian</span>
         <span class="font-semibold" :class="kembalian < 0 ? 'text-red-500' : 'text-gray-700'">
           {{ formatRupiah(Math.max(0, kembalian)) }}
         </span>
       </div>
 
-      <div v-if="metode === 'Cash'" class="grid grid-cols-4 gap-1.5">
+      <div v-if="metode === 'Tunai'" class="grid grid-cols-4 gap-1.5">
         <button
           v-for="quick in [50000, 100000, 150000, 200000]"
           :key="quick"
