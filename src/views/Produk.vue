@@ -19,6 +19,7 @@
             <tr class="text-left text-xs text-gray-400 uppercase">
               <th class="px-5 py-3 font-medium">Produk</th>
               <th class="px-5 py-3 font-medium">Kategori</th>
+              <th class="px-5 py-3 font-medium">Berat</th>
               <th class="px-5 py-3 font-medium">Harga</th>
               <th class="px-5 py-3 font-medium">Stok</th>
               <th class="px-5 py-3 font-medium">Terjual</th>
@@ -38,6 +39,7 @@
               <td class="px-5 py-3">
                 <span class="badge bg-gray-100 text-gray-500">{{ p.kategori }}</span>
               </td>
+              <td class="px-5 py-3 text-gray-700">{{ p.gram || '-' }} g</td>
               <td class="px-5 py-3 text-gray-700">{{ formatRupiah(p.harga) }}</td>
               <td class="px-5 py-3" :class="p.stok <= 10 ? 'text-red-500 font-semibold' : 'text-gray-700'">
                 {{ p.stok }} {{ p.satuan || 'pak' }}
@@ -56,6 +58,7 @@
               </td>
               <td class="px-5 py-3 text-right">
                 <button @click="openEditModal(p)" class="text-gray-400 hover:text-brand-600 px-1.5">✏️</button>
+                <button @click="openTransferModal(p)" class="text-gray-400 hover:text-blue-500 px-1.5">🔁</button>
                 <button v-if="canDelete" @click="confirmDelete(p)" class="text-gray-400 hover:text-red-500 px-1.5">🗑️</button>
               </td>
             </tr>
@@ -99,10 +102,20 @@
                 <input v-model.number="form.stok" type="number" min="0" required class="input-field" />
               </div>
             </div>
-            <div>
-              <label class="text-sm font-medium text-gray-700 block mb-1">URL Gambar</label>
-              <input v-model="form.gambar" type="text" class="input-field" placeholder="https://..." />
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm font-medium text-gray-700 block mb-1">Berat (gram)</label>
+                <input v-model.number="form.gram" type="number" min="0" class="input-field" placeholder="Contoh: 500" />
+              </div>
+              <div>
+                <label class="text-sm font-medium text-gray-700 block mb-1">Gambar (upload atau kamera)</label>
+                <input @change="handleFileChange" accept="image/*" capture class="input-field" type="file" />
+                <div class="text-xs text-gray-400 mt-1">Atau tempel URL gambar di field Gambar jika perlu.</div>
+                <input v-model="form.gambar" type="text" class="input-field mt-2" placeholder="Atau: https://..." />
+              </div>
             </div>
+
             <div>
               <label class="text-sm font-medium text-gray-700 block mb-1">Tanggal Kadaluarsa</label>
               <input v-model="form.tanggalKadaluarsa" type="date" class="input-field" />
@@ -131,12 +144,46 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Transfer modal -->
+    <Transition name="modal">
+      <div v-if="showTransferModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4" @click.self="showTransferModal = false">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6">
+          <h3 class="font-bold text-gray-800 text-lg mb-4">Transfer Stok ke Cabang</h3>
+          <p class="text-sm text-gray-500 mb-3">Kirim sebagian stok produk ke cabang lain.</p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Produk</label>
+              <div class="text-sm text-gray-800">{{ transferProduct ? transferProduct.nama : '-' }}</div>
+            </div>
+
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Pilih Cabang Tujuan</label>
+              <select v-model="selectedBranch" class="input-field">
+                <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.nama }}</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Jumlah yang dikirim</label>
+              <input v-model.number="transferQty" type="number" min="1" class="input-field" />
+            </div>
+
+            <div class="flex gap-3 pt-3">
+              <button @click="showTransferModal = false" class="btn-outline flex-1">Batal</button>
+              <button @click="executeTransfer" class="btn-primary flex-1">Kirim</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getAllProducts, addProduct, updateProduct, deleteProduct } from '../db/LocalDb'
+import { getAllProducts, addProduct, updateProduct, deleteProduct, getBranches, transferStockToBranch } from '../db/LocalDb'
 import { formatRupiah, formatDateShort, daysUntilExpiry } from '../composables/useFormat'
 import { useAuth } from '../composables/useAuth'
 import { featureLevel } from '../composables/useRoleAccess'
@@ -150,6 +197,13 @@ const showModal = ref(false)
 const editingProduct = ref(null)
 const deletingProduct = ref(null)
 
+// transfer modal
+const showTransferModal = ref(false)
+const transferProduct = ref(null)
+const transferQty = ref(1)
+const branches = ref([])
+const selectedBranch = ref(null)
+
 const defaultGambar = '/images/placeholder.jpg'
 
 const form = ref({
@@ -158,6 +212,7 @@ const form = ref({
   harga: 0,
   hargaModal: 0,
   stok: 0,
+  gram: 500,
   gambar: '',
   tanggalKadaluarsa: ''
 })
@@ -172,9 +227,25 @@ async function loadProducts() {
   allProducts.value = await getAllProducts()
 }
 
+async function openTransferModal(product) {
+  transferProduct.value = product
+  branches.value = await getBranches()
+  if (branches.value.length > 0) selectedBranch.value = branches.value[0].id
+  transferQty.value = 1
+  showTransferModal.value = true
+}
+
+async function executeTransfer() {
+  if (!transferProduct.value || !selectedBranch.value || transferQty.value <= 0) return
+  await transferStockToBranch(transferProduct.value.id, selectedBranch.value, transferQty.value)
+  await loadProducts()
+  showTransferModal.value = false
+  transferProduct.value = null
+}
+
 function openAddModal() {
   editingProduct.value = null
-  form.value = { nama: '', kategori: 'Daging', harga: 0, hargaModal: 0, stok: 0, gambar: '', tanggalKadaluarsa: '' }
+  form.value = { nama: '', kategori: 'Daging', harga: 0, hargaModal: 0, stok: 0, gram: 500, gambar: '', tanggalKadaluarsa: '' }
   showModal.value = true
 }
 
@@ -199,6 +270,7 @@ async function saveProduct() {
   const payload = {
     ...form.value,
     gambar: form.value.gambar || defaultGambar,
+    gram: form.value.gram || 0,
     status: deriveStatus(form.value.stok)
   }
 
@@ -210,6 +282,16 @@ async function saveProduct() {
 
   await loadProducts()
   closeModal()
+}
+
+function handleFileChange(event) {
+  const file = event.target.files && event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    form.value.gambar = reader.result
+  }
+  reader.readAsDataURL(file)
 }
 
 function confirmDelete(product) {

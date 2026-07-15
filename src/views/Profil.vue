@@ -9,10 +9,16 @@
         <h2 class="text-lg font-bold text-gray-800">{{ currentUser?.nama || '-' }}</h2>
         <p class="text-sm text-gray-400">{{ currentUser?.role || '-' }}</p>
         <p class="text-xs text-gray-400 mt-1">Username: {{ currentUser?.username || '-' }}</p>
+        <p v-if="hasActiveShift" class="text-xs text-brand-600 mt-2">Shift aktif: {{ currentUser.shift }} · Kas Awal {{ formatRupiah(currentUser.startingCash) }}</p>
       </div>
-      <button @click="handleLogout" class="btn-outline text-red-500 border-red-200 hover:bg-red-50 shrink-0">
-        ⏻ Keluar
-      </button>
+      <div class="flex flex-col gap-2 items-end">
+        <button v-if="hasActiveShift" @click="closeCurrentShift" class="btn-outline text-brand-600 border-brand-200 hover:bg-brand-50 shrink-0">
+          Tutup Shift
+        </button>
+        <button @click="handleLogout" class="btn-outline text-red-500 border-red-200 hover:bg-red-50 shrink-0">
+          ⏻ Keluar
+        </button>
+      </div>
     </div>
 
     <!-- Today's activity summary: cuma relevan buat yang megang kasir langsung -->
@@ -28,6 +34,38 @@
       <div class="card">
         <p class="text-xs font-medium text-gray-400 uppercase">Item Terjual</p>
         <p class="text-2xl font-bold text-gray-800 mt-1.5">{{ myStats.totalItem }}</p>
+      </div>
+    </div>
+
+    <div v-if="isKasirRole" class="card">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-gray-800">Riwayat Shift</h3>
+          <p class="text-sm text-gray-500">Shift yang sudah dimulai hari ini dan sebelumnya.</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto thin-scroll">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr class="text-left text-xs text-gray-400 uppercase">
+              <th class="px-5 py-3 font-medium">Tanggal</th>
+              <th class="px-5 py-3 font-medium">Shift</th>
+              <th class="px-5 py-3 font-medium">Kas Awal</th>
+              <th class="px-5 py-3 font-medium">Waktu</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="shift in shiftHistory" :key="shift.id" class="border-t border-gray-50">
+              <td class="px-5 py-3 text-gray-500">{{ shift.tanggal }}</td>
+              <td class="px-5 py-3 font-medium text-gray-800">{{ shift.shift }}</td>
+              <td class="px-5 py-3 font-semibold text-gray-800">{{ formatRupiah(shift.startingCash) }}</td>
+              <td class="px-5 py-3 text-gray-500">{{ shift.waktu }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="shiftHistory.length === 0" class="text-center text-gray-400 py-10 text-sm">
+          Belum ada catatan shift.
+        </p>
       </div>
     </div>
 
@@ -95,23 +133,25 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import { getAllTransactions, getUserByUsername, updateUserPassword } from '../db/LocalDb'
+import { getAllTransactions, getShiftsByUsername, getUserByUsername, updateUserPassword } from '../db/LocalDb'
 import { formatRupiah, formatRupiahShort } from '../composables/useFormat'
 import { canAccess } from '../composables/useRoleAccess'
 
 const router = useRouter()
-const { currentUser, logout } = useAuth()
+const { currentUser, logout, clearShift } = useAuth()
 
 // Cuma role yang beneran megang kasir (punya akses halaman Transaksi Kasir)
 // yang perlu liat statistik "transaksi yang saya layani"
 const isKasirRole = computed(() => canAccess(currentUser.value?.role, '/kasir'))
 
 const allTransactions = ref([])
+const shiftHistory = ref([])
 const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const errorMsg = ref('')
 const successMsg = ref('')
+const hasActiveShift = computed(() => !!currentUser.value?.shift)
 
 const initials = computed(() => {
   const name = currentUser.value?.nama || ''
@@ -141,6 +181,11 @@ function metodeBadgeClass(metode) {
 
 async function loadTransactions() {
   allTransactions.value = await getAllTransactions()
+}
+
+async function loadShiftHistory() {
+  if (!currentUser.value?.username) return
+  shiftHistory.value = await getShiftsByUsername(currentUser.value.username)
 }
 
 async function handleChangePassword() {
@@ -173,10 +218,18 @@ async function handleChangePassword() {
   confirmPassword.value = ''
 }
 
+async function closeCurrentShift() {
+  clearShift()
+  await loadShiftHistory()
+}
+
 function handleLogout() {
   logout()
   router.push('/login')
 }
 
-onMounted(loadTransactions)
+onMounted(async () => {
+  await loadTransactions()
+  await loadShiftHistory()
+})
 </script>

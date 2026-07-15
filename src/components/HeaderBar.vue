@@ -3,6 +3,7 @@
     <div>
       <h1 class="text-lg font-bold text-gray-800">{{ title }}</h1>
       <p class="text-xs text-gray-400 mt-0.5">{{ subtitle }}</p>
+      <p v-if="shiftInfo" class="text-xs text-brand-600 mt-1">{{ shiftInfo }}</p>
     </div>
 
     <div class="flex items-center gap-3">
@@ -19,6 +20,10 @@
 
       <NotificationBell />
 
+      <div v-if="isCashierRole && currentUser.value?.shift" class="flex items-center gap-2">
+        <span class="text-xs text-brand-600">Shift aktif</span>
+        <button @click="handleCloseShift" class="px-3 py-1 rounded-full border border-brand-200 text-brand-600 text-xs hover:bg-brand-50">Close Shift</button>
+      </div>
       <div
         @click="router.push('/profil')"
         class="w-9 h-9 rounded-full bg-orange-400 text-white flex items-center justify-center text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity"
@@ -34,12 +39,13 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { formatRupiah } from '../composables/useFormat'
 import SyncIndicator from './SyncIndicator.vue'
 import NotificationBell from './NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { currentUser } = useAuth()
+const { currentUser, clearShift } = useAuth()
 
 const titles = {
   dashboard: { title: 'Dashboard', subtitle: `Selamat pagi, ${1}` },
@@ -59,6 +65,17 @@ const subtitle = computed(() => {
   }
   return titles[route.name]?.subtitle || ''
 })
+
+const shiftInfo = computed(() => {
+  if (!currentUser.value?.shift) return ''
+  return `${currentUser.value.shift} · Kas Awal ${formatRupiah(currentUser.value.startingCash || 0)}`
+})
+
+const isCashierRole = computed(() => ['Kasir', 'Kasir Utama'].includes(currentUser.value?.role))
+
+function handleCloseShift() {
+  clearShift()
+}
 
 const initials = computed(() => {
   const name = currentUser.value?.nama || ''

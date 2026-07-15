@@ -115,6 +115,8 @@
 
       <p v-if="errorMsg" class="text-xs text-red-500 text-center">{{ errorMsg }}</p>
     </div>
+
+    <StrukTransaksi v-if="strukData" :transaksi="strukData" @close="strukData = null" />
   </aside>
 </template>
 
@@ -124,6 +126,7 @@ import { useCart } from '../composables/useCart'
 import { formatRupiah } from '../composables/useFormat'
 import { createTransaction, decrementStock } from '../db/LocalDb'
 import { useAuth } from '../composables/useAuth'
+import StrukTransaksi from './StrukTransaksi.vue'
 
 const emit = defineEmits(['checkout-success'])
 
@@ -134,6 +137,7 @@ const metode = ref('Tunai')
 const nominalBayar = ref(null)
 const isProcessing = ref(false)
 const errorMsg = ref('')
+const strukData = ref(null)
 
 const metodeOptions = [
   { value: 'Tunai', label: 'Tunai', icon: '💵' },
@@ -155,27 +159,71 @@ async function handleCheckout() {
   isProcessing.value = true
   try {
     const now = new Date()
-    await createTransaction({
-      tanggal: now.toISOString().slice(0, 10),
-      waktu: now.toTimeString().slice(0, 5),
+    const tanggal = now.toISOString().slice(0, 10)
+    const waktu = now.toTimeString().slice(0, 5)
+    const metodeDb = metode.value === 'Tunai' ? 'Cash' : metode.value
+    const kasirNama = currentUser.value?.nama || 'Kasir'
+
+    // Snapshot item keranjang SEBELUM di-clear, dipake buat struk
+    const itemsSnapshot = cart.items.value.map(i => ({
+      nama: i.nama,
+      harga: i.harga,
+      qty: i.qty
+    }))
+
+    const transaction = await createTransaction({
+      tanggal,
+      waktu,
       items: cart.totalItemCount.value,
       subtotal: cart.subtotal.value,
       ppn: cart.ppn.value,
       diskon: cart.diskonAmount.value,
       total: cart.grandTotal.value,
-      metode: metode.value === 'Tunai' ? 'Cash' : metode.value,
-      kasir: currentUser.value?.nama || 'Kasir',
-      cabang: currentUser.value?.cabang || 'Cabang Utama'
+      metode: metodeDb,
+      kasir: kasirNama,
+      diskonPercent: cart.diskonPercent.value,
+      nominalBayar: metode.value === 'Tunai' ? nominalBayar.value : null,
+      // Detail produk+qty, dipakai Auto-Sync Engine buat kirim ulang ke backend
+      itemsDetail: cart.items.value.map(i => ({ productId: i.id, qty: i.qty }))
     })
 
     for (const item of cart.items.value) {
       await decrementStock(item.id, item.qty)
     }
 
+    // Siapin data buat ditampilin/di-print di StrukTransaksi
+    strukData.value = {
+      kode: transaction.kode,
+      tanggal,
+      waktu,
+      kasir: kasirNama,
+      items: itemsSnapshot,
+      subtotal: cart.subtotal.value,
+      diskonPercent: cart.diskonPercent.value,
+      diskonAmount: cart.diskonAmount.value,
+      ppn: cart.ppn.value,
+      total: cart.grandTotal.value,
+      metode: metodeDb,
+      nominalBayar: metode.value === 'Tunai' ? nominalBayar.value : null,
+      kembalian: metode.value === 'Tunai' ? kembalian.value : null
+    }
+
     cart.clearCart()
     nominalBayar.value = null
     metode.value = 'Tunai'
     emit('checkout-success')
+
+    // Kalau lagi offline pas transaksi ini dibuat, minta browser buat
+    // ngabarin Service Worker begitu koneksi balik online (Background Sync API)
+    if (!navigator.onLine && 'serviceWorker' in navigator && 'SyncManager' in window) {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        await registration.sync.register('sync-transactions')
+      } catch {
+        // Browser gak support Background Sync API (misal Safari/Firefox) -
+        // gak masalah, fallback window 'online' event + polling tetep jalan
+      }
+    }
   } catch (e) {
     errorMsg.value = 'Gagal memproses transaksi. Coba lagi.'
   } finally {

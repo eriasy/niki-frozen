@@ -102,6 +102,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Shift modal -->
+    <Transition name="modal">
+      <div v-if="showShiftModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4" @click.self="showShiftModal = false">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6">
+          <h3 class="font-bold text-gray-800 text-lg mb-3">Mulai Shift Kasir</h3>
+          <p class="text-sm text-gray-500 mb-3">Pilih shift dan masukkan jumlah uang kas awal sebelum mulai bertugas.</p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Shift</label>
+              <select v-model="selectedShift" class="input-field">
+                <option value="Pagi">Pagi</option>
+                <option value="Sore">Sore</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Uang Kas Awal (Rp)</label>
+              <input v-model.number="startingCash" type="number" min="0" class="input-field" placeholder="Contoh: 200000" />
+            </div>
+
+            <div class="flex gap-3 pt-3">
+              <button @click="showShiftModal = false" class="btn-outline flex-1">Batal</button>
+              <button @click="confirmShift" class="btn-primary flex-1">Mulai Shift</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -109,10 +139,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { defaultRouteForRole } from '../composables/useRoleAccess'
 import { formatRupiahShort } from '../composables/useFormat'
 
 const router = useRouter()
-const { login } = useAuth()
+const { currentUser, login, setShift } = useAuth()
 
 const username = ref('')
 const password = ref('')
@@ -120,6 +151,10 @@ const showPassword = ref(false)
 const ingatSaya = ref(false)
 const isLoading = ref(false)
 const errorMsg = ref('')
+
+const showShiftModal = ref(false)
+const selectedShift = ref('Pagi')
+const startingCash = ref(0)
 
 const previewProducts = [
   { nama: 'Bakso Sapi Premium', harga: 35000, gambar: '/images/bakso-sapi-premium.jpg' },
@@ -137,13 +172,24 @@ async function handleLogin() {
   try {
     const result = await login(username.value.trim().toLowerCase(), password.value)
     if (result.success) {
-      router.push('/')
+      const role = currentUser.value?.role
+      const cashierRoles = ['Kasir', 'Kasir Utama']
+      if (cashierRoles.includes(role)) {
+        showShiftModal.value = true
+      } else {
+        router.push(defaultRouteForRole(role))
+      }
     } else {
       errorMsg.value = result.message
     }
   } finally {
     isLoading.value = false
   }
+}
+
+async function confirmShift() {
+  await setShift(selectedShift.value, startingCash.value)
+  router.push('/')
 }
 
 function handleImgError(event) {

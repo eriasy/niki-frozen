@@ -36,6 +36,7 @@
             <tr class="text-left text-xs text-gray-400 uppercase">
               <th class="px-5 py-3 font-medium">Produk</th>
               <th class="px-5 py-3 font-medium">Kategori</th>
+              <th class="px-5 py-3 font-medium">Berat</th>
               <th class="px-5 py-3 font-medium">Stok Saat Ini</th>
               <th class="px-5 py-3 font-medium">Kadaluarsa</th>
               <th class="px-5 py-3 font-medium">Status</th>
@@ -53,6 +54,7 @@
               <td class="px-5 py-3">
                 <span class="badge bg-gray-100 text-gray-500">{{ p.kategori }}</span>
               </td>
+              <td class="px-5 py-3 text-gray-700">{{ p.gram || '-' }} g</td>
               <td class="px-5 py-3">
                 <div class="flex items-center gap-2">
                   <div class="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
