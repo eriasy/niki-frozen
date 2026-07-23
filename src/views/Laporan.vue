@@ -69,8 +69,8 @@
                 </div>
               </td>
               <td class="px-5 py-3"><span class="badge bg-gray-100 text-gray-500">{{ p.kategori }}</span></td>
-              <td class="px-5 py-3 text-gray-700">{{ p.terjual }}</td>
-              <td class="px-5 py-3 font-semibold text-gray-800">{{ formatRupiah(p.terjual * p.harga) }}</td>
+              <td class="px-5 py-3 text-gray-700">{{ p.qtyPeriode }}</td>
+              <td class="px-5 py-3 font-semibold text-gray-800">{{ formatRupiah(p.qtyPeriode * p.harga) }}</td>
             </tr>
           </tbody>
         </table>
@@ -143,27 +143,78 @@ const metodeChartRef = ref(null)
 let categoryChart = null
 let metodeChart = null
 
+// Cocokin tanggal transaksi sama periode yang dipilih
+function isInPeriod(tanggalStr, periodeValue) {
+  if (periodeValue === 'Semua') return true
+  const tgl = new Date(tanggalStr + 'T00:00:00')
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+
+  if (periodeValue === 'Hari Ini') {
+    return tgl.getTime() === now.getTime()
+  }
+  if (periodeValue === 'Minggu Ini') {
+    const dayOfWeek = now.getDay()
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - diffToMonday)
+    return tgl >= monday && tgl <= now
+  }
+  if (periodeValue === 'Bulan Ini') {
+    return tgl.getFullYear() === now.getFullYear() && tgl.getMonth() === now.getMonth()
+  }
+  return true
+}
+
+const filteredTransactions = computed(() =>
+  allTransactions.value.filter(t => isInPeriod(t.tanggal, periode.value))
+)
+
 const summary = computed(() => {
-  const totalOmset = allTransactions.value.reduce((sum, t) => sum + t.total, 0)
-  const totalTransaksi = allTransactions.value.length
-  const totalItem = allTransactions.value.reduce((sum, t) => sum + t.items, 0)
+  const totalOmset = filteredTransactions.value.reduce((sum, t) => sum + t.total, 0)
+  const totalTransaksi = filteredTransactions.value.length
+  const totalItem = filteredTransactions.value.reduce((sum, t) => sum + t.items, 0)
   const rataRata = totalTransaksi ? Math.round(totalOmset / totalTransaksi) : 0
   return { totalOmset, totalTransaksi, totalItem, rataRata }
 })
 
-const topProducts = computed(() => [...allProducts.value].sort((a, b) => b.terjual - a.terjual).slice(0, 6))
+// Penjualan per produk dalam periode terpilih, dihitung dari itemsDetail
+// tiap transaksi (bukan dari counter lifetime `terjual` di produk, biar
+// beneran spesifik ke periode yang dipilih)
+const periodProductSales = computed(() => {
+  if (periode.value === 'Semua') {
+    // Buat "Semua", pake counter lifetime `terjual` - mencakup juga transaksi
+    // lama sebelum fitur itemsDetail ada
+    return allProducts.value.map(p => ({ ...p, qtyPeriode: p.terjual }))
+  }
+
+  const qtyMap = {}
+  filteredTransactions.value.forEach(t => {
+    (t.itemsDetail || []).forEach(item => {
+      qtyMap[item.productId] = (qtyMap[item.productId] || 0) + item.qty
+    })
+  })
+
+  return allProducts.value
+    .filter(p => qtyMap[p.id])
+    .map(p => ({ ...p, qtyPeriode: qtyMap[p.id] }))
+})
+
+const topProducts = computed(() =>
+  [...periodProductSales.value].sort((a, b) => b.qtyPeriode - a.qtyPeriode).slice(0, 6)
+)
 
 const categoryBreakdown = computed(() => {
   const map = {}
-  allProducts.value.forEach(p => {
-    map[p.kategori] = (map[p.kategori] || 0) + p.terjual
+  periodProductSales.value.forEach(p => {
+    map[p.kategori] = (map[p.kategori] || 0) + p.qtyPeriode
   })
   return map
 })
 
 const metodeBreakdown = computed(() => {
   const map = { Cash: 0, QRIS: 0, Transfer: 0 }
-  allTransactions.value.forEach(t => {
+  filteredTransactions.value.forEach(t => {
     map[t.metode] = (map[t.metode] || 0) + 1
   })
   return map
@@ -229,13 +280,14 @@ function renderMetodeChart() {
 
 function exportCsv() {
   const headers = ['Kode', 'Tanggal', 'Waktu', 'Item', 'Subtotal', 'PPN', 'Diskon', 'Total', 'Metode', 'Kasir']
-  const rows = allTransactions.value.map(t => [t.kode, t.tanggal, t.waktu, t.items, t.subtotal, t.ppn, t.diskon, t.total, t.metode, t.kasir])
+  const rows = filteredTransactions.value.map(t => [t.kode, t.tanggal, t.waktu, t.items, t.subtotal, t.ppn, t.diskon, t.total, t.metode, t.kasir])
   const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n')
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `laporan-niki-frozen-${new Date().toISOString().slice(0, 10)}.csv`
+  const periodeSlug = periode.value.toLowerCase().replace(/\s+/g, '-')
+  link.download = `laporan-niki-frozen-${periodeSlug}-${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -247,7 +299,7 @@ onMounted(async () => {
   renderMetodeChart()
 })
 
-watch([allProducts, allTransactions], async () => {
+watch([allProducts, allTransactions, periode], async () => {
   await nextTick()
   if (categoryChartRef.value) renderCategoryChart()
   if (metodeChartRef.value) renderMetodeChart()

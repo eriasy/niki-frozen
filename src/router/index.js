@@ -10,6 +10,7 @@ import StokBarang from '../views/StokBarang.vue'
 import RiwayatPenjualan from '../views/RiwayatPenjualan.vue'
 import Laporan from '../views/Laporan.vue'
 import ManajemenPengguna from '../views/ManajemenPengguna.vue'
+import ManajemenCabang from '../views/ManajemenCabang.vue'
 import Profil from '../views/Profil.vue'
 
 const routes = [
@@ -53,6 +54,11 @@ const routes = [
     path: '/pengguna',
     name: 'pengguna',
     component: ManajemenPengguna
+  },
+  {
+    path: '/cabang',
+    name: 'cabang',
+    component: ManajemenCabang
   },
   {
     path: '/profil',

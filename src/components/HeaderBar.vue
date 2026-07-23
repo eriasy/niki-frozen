@@ -7,15 +7,6 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="relative hidden md:block">
-        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
-        <input
-          type="text"
-          placeholder="Cari produk, transaksi..."
-          class="bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-brand-400"
-        />
-      </div>
-
       <SyncIndicator />
 
       <NotificationBell />

@@ -8,8 +8,8 @@
 export const ROLE_ACCESS = {
   'Kasir': ['/kasir', '/riwayat', '/profil'],
   'Kasir Utama': ['/', '/kasir', '/stok', '/riwayat', '/profil'],
-  'Admin': ['/', '/produk', '/stok', '/riwayat', '/laporan', '/pengguna', '/profil'],
-  'Pemilik Toko': ['/', '/produk', '/stok', '/riwayat', '/laporan', '/pengguna', '/profil']
+  'Admin': ['/', '/produk', '/stok', '/riwayat', '/laporan', '/pengguna', '/cabang', '/profil'],
+  'Pemilik Toko': ['/', '/produk', '/stok', '/riwayat', '/laporan', '/pengguna', '/cabang', '/profil']
 }
 
 // Halaman yang dituju setelah login, sesuai role masing-masing

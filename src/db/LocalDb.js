@@ -354,6 +354,23 @@ export async function addBranch(branch) {
   return db.branches.add(branch)
 }
 
+export async function updateBranch(id, changes) {
+  return db.branches.update(id, changes)
+}
+
+export async function deleteBranch(id) {
+  const branch = await db.branches.get(id)
+  if (!branch) return db.branches.delete(id)
+
+  // toBranch di tabel transfers nyimpen NAMA cabang (bukan id), jadi
+  // pengecekannya harus cocokin ke nama, bukan angka id
+  const stillUsed = await db.transfers.where('toBranch').equals(branch.nama).count()
+  if (stillUsed > 0) {
+    throw new Error('Cabang ini masih punya riwayat transfer, tidak bisa dihapus.')
+  }
+  return db.branches.delete(id)
+}
+
 export async function getBranches() {
   return db.branches.toArray()
 }

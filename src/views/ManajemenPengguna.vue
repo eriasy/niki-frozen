@@ -18,6 +18,7 @@
               <th class="px-5 py-3 font-medium">Nama</th>
               <th class="px-5 py-3 font-medium">Username</th>
               <th class="px-5 py-3 font-medium">Role</th>
+              <th class="px-5 py-3 font-medium">Cabang</th>
               <th class="px-5 py-3 font-medium text-right">Aksi</th>
             </tr>
           </thead>
@@ -36,6 +37,7 @@
               <td class="px-5 py-3">
                 <span class="badge" :class="roleBadgeClass(u.role)">{{ u.role }}</span>
               </td>
+              <td class="px-5 py-3 text-gray-500">{{ u.cabang || 'Cabang Utama' }}</td>
               <td class="px-5 py-3 text-right">
                 <button @click="openEditModal(u)" class="text-gray-400 hover:text-brand-600 px-1.5">✏️</button>
                 <button
@@ -77,6 +79,12 @@
                 <option v-for="r in assignableRoles" :key="r" :value="r">{{ r }}</option>
               </select>
             </div>
+            <div>
+              <label class="text-sm font-medium text-gray-700 block mb-1">Cabang</label>
+              <select v-model="form.cabang" required class="input-field">
+                <option v-for="b in branches" :key="b.id" :value="b.nama">{{ b.nama }}</option>
+              </select>
+            </div>
 
             <p v-if="errorMsg" class="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{{ errorMsg }}</p>
 
@@ -109,11 +117,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
-import { getAllUsers, addUser, updateUser, deleteUser } from '../db/LocalDb'
+import { getAllUsers, addUser, updateUser, deleteUser, getBranches } from '../db/LocalDb'
 
 const { currentUser } = useAuth()
 
 const allUsers = ref([])
+const branches = ref([])
 const showModal = ref(false)
 const editingUser = ref(null)
 const deletingUser = ref(null)
@@ -125,11 +134,16 @@ const form = ref({
   nama: '',
   username: '',
   password: '',
-  role: 'Kasir'
+  role: 'Kasir',
+  cabang: 'Cabang Utama'
 })
 
 async function loadUsers() {
   allUsers.value = await getAllUsers()
+}
+
+async function loadBranches() {
+  branches.value = await getBranches()
 }
 
 function roleBadgeClass(role) {
@@ -142,14 +156,14 @@ function roleBadgeClass(role) {
 function openAddModal() {
   editingUser.value = null
   errorMsg.value = ''
-  form.value = { nama: '', username: '', password: '', role: 'Kasir' }
+  form.value = { nama: '', username: '', password: '', role: 'Kasir', cabang: branches.value[0]?.nama || 'Cabang Utama' }
   showModal.value = true
 }
 
 function openEditModal(user) {
   editingUser.value = user
   errorMsg.value = ''
-  form.value = { nama: user.nama, username: user.username, password: '', role: user.role }
+  form.value = { nama: user.nama, username: user.username, password: '', role: user.role, cabang: user.cabang || 'Cabang Utama' }
   showModal.value = true
 }
 
@@ -163,7 +177,7 @@ async function saveUser() {
   errorMsg.value = ''
   try {
     if (editingUser.value) {
-      const changes = { nama: form.value.nama, role: form.value.role }
+      const changes = { nama: form.value.nama, role: form.value.role, cabang: form.value.cabang }
       if (form.value.password) changes.password = form.value.password
       await updateUser(editingUser.value.id, changes)
     } else {
@@ -175,7 +189,8 @@ async function saveUser() {
         username: form.value.username,
         password: form.value.password,
         nama: form.value.nama,
-        role: form.value.role
+        role: form.value.role,
+        cabang: form.value.cabang
       })
     }
     await loadUsers()
@@ -196,7 +211,10 @@ async function executeDelete() {
   deletingUser.value = null
 }
 
-onMounted(loadUsers)
+onMounted(() => {
+  loadUsers()
+  loadBranches()
+})
 </script>
 
 <style scoped>

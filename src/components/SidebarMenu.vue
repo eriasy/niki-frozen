@@ -68,7 +68,8 @@ const menuItems = [
   { path: '/stok', label: 'Stok Barang', icon: '🗄️' },
   { path: '/riwayat', label: 'Riwayat Penjualan', icon: '🕒' },
   { path: '/laporan', label: 'Laporan', icon: '📈' },
-  { path: '/pengguna', label: 'Manajemen Pengguna', icon: '👥' }
+  { path: '/pengguna', label: 'Manajemen Pengguna', icon: '👥' },
+  { path: '/cabang', label: 'Manajemen Cabang', icon: '🏬' }
 ]
 
 // Cuma tampilin menu yang boleh diakses sama role user yang lagi login

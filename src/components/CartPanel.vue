@@ -181,6 +181,7 @@ async function handleCheckout() {
       total: cart.grandTotal.value,
       metode: metodeDb,
       kasir: kasirNama,
+      cabang: currentUser.value?.cabang || 'Cabang Utama',
       diskonPercent: cart.diskonPercent.value,
       nominalBayar: metode.value === 'Tunai' ? nominalBayar.value : null,
       // Detail produk+qty, dipakai Auto-Sync Engine buat kirim ulang ke backend
